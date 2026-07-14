@@ -1,14 +1,10 @@
--- ============================================================
--- DDL для модуля ФЛК (Форматно-логический контроль)
--- Применить к PostgreSQL 14+
--- ============================================================
+﻿-- DDL РґР»СЏ РјРѕРґСѓР»СЏ Р¤Р›Рљ (Р¤РѕСЂРјР°С‚РЅРѕ-Р»РѕРіРёС‡РµСЃРєРёР№ РєРѕРЅС‚СЂРѕР»СЊ)
+-- РџСЂРёРјРµРЅРёС‚СЊ Рє PostgreSQL 14+
 
--- Схема для технических таблиц (если ещё не создана)
+-- РЎС…РµРјР° РґР»СЏ С‚РµС…РЅРёС‡РµСЃРєРёС… С‚Р°Р±Р»РёС† (РµСЃР»Рё РµС‰С‘ РЅРµ СЃРѕР·РґР°РЅР°)
 CREATE SCHEMA IF NOT EXISTS tech_data;
 
--- ============================================================
--- 1. Основная таблица конфигурации правил ФЛК
--- ============================================================
+-- 1. РћСЃРЅРѕРІРЅР°СЏ С‚Р°Р±Р»РёС†Р° РєРѕРЅС„РёРіСѓСЂР°С†РёРё РїСЂР°РІРёР» Р¤Р›Рљ
 CREATE TABLE IF NOT EXISTS tech_data.tech_flk_config_table (
     id serial4 PRIMARY KEY,
     indicator varchar NOT NULL,
@@ -20,37 +16,37 @@ CREATE TABLE IF NOT EXISTS tech_data.tech_flk_config_table (
     indicator_category varchar NOT NULL,
     check_type varchar NOT NULL,
 
-    -- Целевая таблица (при обновлении которой триггерится правило)
+    -- Р¦РµР»РµРІР°СЏ С‚Р°Р±Р»РёС†Р° (РїСЂРё РѕР±РЅРѕРІР»РµРЅРёРё РєРѕС‚РѕСЂРѕР№ С‚СЂРёРіРіРµСЂРёС‚СЃСЏ РїСЂР°РІРёР»Рѕ)
     target_schema varchar NOT NULL,
     target_table varchar NOT NULL,
 
-    -- Блок логики проверки
-    check_mode varchar NOT NULL DEFAULT 'SIMPLE',  -- 'SIMPLE' или 'RAW_SQL'
+    -- Р‘Р»РѕРє Р»РѕРіРёРєРё РїСЂРѕРІРµСЂРєРё
+    check_mode varchar NOT NULL DEFAULT 'SIMPLE',  -- 'SIMPLE' РёР»Рё 'RAW_SQL'
     is_aggregated bool NOT NULL DEFAULT false,
     rule_payload jsonb NULL,
     raw_sql_template varchar NULL,
 
-    -- Блок критериев
+    -- Р‘Р»РѕРє РєСЂРёС‚РµСЂРёРµРІ
     evaluation varchar NOT NULL,
     passing_criteria float4 NOT NULL,
     is_actual bool DEFAULT true NOT NULL,
 
-    -- Старый функционал Python/ETL (совместимость)
+    -- РЎС‚Р°СЂС‹Р№ С„СѓРЅРєС†РёРѕРЅР°Р» Python/ETL (СЃРѕРІРјРµСЃС‚РёРјРѕСЃС‚СЊ)
     is_custom bool DEFAULT false NOT NULL,
     custom_function varchar NULL,
     custom_function_args _varchar NULL,
 
-    -- Ответственные
+    -- РћС‚РІРµС‚СЃС‚РІРµРЅРЅС‹Рµ
     pm_responsible_id varchar NULL,
     pm_accomplices_ids varchar NULL,
 
-    -- Статус (для UI: DRAFT, PUBLISHED, ARCHIVED)
+    -- РЎС‚Р°С‚СѓСЃ (РґР»СЏ UI: DRAFT, PUBLISHED, ARCHIVED)
     status varchar NOT NULL DEFAULT 'DRAFT',
 
     update_timestamp timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
--- Индексы для быстрой выборки
+-- РРЅРґРµРєСЃС‹ РґР»СЏ Р±С‹СЃС‚СЂРѕР№ РІС‹Р±РѕСЂРєРё
 CREATE INDEX IF NOT EXISTS idx_flk_config_target
     ON tech_data.tech_flk_config_table (target_schema, target_table);
 CREATE INDEX IF NOT EXISTS idx_flk_config_actual
@@ -60,9 +56,7 @@ CREATE INDEX IF NOT EXISTS idx_flk_config_responsible
 CREATE INDEX IF NOT EXISTS idx_flk_config_status
     ON tech_data.tech_flk_config_table (status);
 
--- ============================================================
--- 2. Таблица очереди артефактов на проверку
--- ============================================================
+-- 2. РўР°Р±Р»РёС†Р° РѕС‡РµСЂРµРґРё Р°СЂС‚РµС„Р°РєС‚РѕРІ РЅР° РїСЂРѕРІРµСЂРєСѓ
 CREATE TABLE IF NOT EXISTS tech_data.tech_flk_artefacts_to_check (
     artefact_schema varchar NOT NULL,
     artefact_name varchar NOT NULL,
@@ -72,9 +66,7 @@ CREATE TABLE IF NOT EXISTS tech_data.tech_flk_artefacts_to_check (
     CONSTRAINT tech_flk_artefacts_to_check_pk PRIMARY KEY (artefact_schema, artefact_name)
 );
 
--- ============================================================
--- 3. Таблица результатов проверок
--- ============================================================
+-- 3. РўР°Р±Р»РёС†Р° СЂРµР·СѓР»СЊС‚Р°С‚РѕРІ РїСЂРѕРІРµСЂРѕРє
 CREATE TABLE IF NOT EXISTS tech_data.tech_flk_checks_results (
     id serial4 PRIMARY KEY,
     flk_id int4 NOT NULL REFERENCES tech_data.tech_flk_config_table(id),
@@ -87,9 +79,7 @@ CREATE TABLE IF NOT EXISTS tech_data.tech_flk_checks_results (
 CREATE INDEX IF NOT EXISTS idx_flk_results_flk_id
     ON tech_data.tech_flk_checks_results (flk_id);
 
--- ============================================================
--- 4. Таблица логов времени выполнения проверок
--- ============================================================
+-- 4. РўР°Р±Р»РёС†Р° Р»РѕРіРѕРІ РІСЂРµРјРµРЅРё РІС‹РїРѕР»РЅРµРЅРёСЏ РїСЂРѕРІРµСЂРѕРє
 CREATE TABLE IF NOT EXISTS tech_data.tech_flk_working_time_of_checks_log (
     id serial4 PRIMARY KEY,
     check_id int4 NOT NULL,
@@ -98,9 +88,7 @@ CREATE TABLE IF NOT EXISTS tech_data.tech_flk_working_time_of_checks_log (
     working_time float4 NOT NULL
 );
 
--- ============================================================
--- 5. Конфигурация переноса DAL → QHL
--- ============================================================
+-- 5. РљРѕРЅС„РёРіСѓСЂР°С†РёСЏ РїРµСЂРµРЅРѕСЃР° DAL в†’ QHL
 CREATE TABLE IF NOT EXISTS tech_data.tech_flk_dal_to_qhl_config (
     id serial4 PRIMARY KEY,
     dal_table varchar NOT NULL,
@@ -108,9 +96,7 @@ CREATE TABLE IF NOT EXISTS tech_data.tech_flk_dal_to_qhl_config (
     transfer_method varchar NOT NULL DEFAULT 'TRUNCATE'
 );
 
--- ============================================================
--- 6. Лог переноса DAL → QHL
--- ============================================================
+-- 6. Р›РѕРі РїРµСЂРµРЅРѕСЃР° DAL в†’ QHL
 CREATE TABLE IF NOT EXISTS tech_data.tech_flk_dal_to_qhl_log (
     id serial4 PRIMARY KEY,
     dal_table varchar NOT NULL,
@@ -120,9 +106,7 @@ CREATE TABLE IF NOT EXISTS tech_data.tech_flk_dal_to_qhl_log (
     transfer_timestamp timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
--- ============================================================
--- 7. Функция генерации SQL-запроса из правила
--- ============================================================
+-- 7. Р¤СѓРЅРєС†РёСЏ РіРµРЅРµСЂР°С†РёРё SQL-Р·Р°РїСЂРѕСЃР° РёР· РїСЂР°РІРёР»Р°
 CREATE OR REPLACE FUNCTION tech_data.tech_flk_create_checking_queries(r RECORD)
 RETURNS varchar
 LANGUAGE plpgsql
@@ -158,9 +142,7 @@ BEGIN
 END;
 $function$;
 
--- ============================================================
--- 8. Функция проверки таблицы (ядро ФЛК)
--- ============================================================
+-- 8. Р¤СѓРЅРєС†РёСЏ РїСЂРѕРІРµСЂРєРё С‚Р°Р±Р»РёС†С‹ (СЏРґСЂРѕ Р¤Р›Рљ)
 CREATE OR REPLACE FUNCTION tech_data.tech_flk_check_table(p_table_schema character varying, p_table_name character varying)
 RETURNS boolean
 LANGUAGE plpgsql
@@ -243,51 +225,47 @@ BEGIN
 END;
 $function$;
 
--- ============================================================
--- 9. Seed данные (опционально — для демонстрации)
--- ============================================================
+-- 9. Seed РґР°РЅРЅС‹Рµ (РѕРїС†РёРѕРЅР°Р»СЊРЅРѕ вЂ” РґР»СЏ РґРµРјРѕРЅСЃС‚СЂР°С†РёРё)
 INSERT INTO tech_data.tech_flk_config_table
     (indicator, description, incident_id, incident_id_from_pm, product_type, product_name,
      indicator_category, check_type, target_schema, target_table,
      check_mode, is_aggregated, rule_payload, raw_sql_template,
      evaluation, passing_criteria, is_actual, pm_responsible_id, pm_accomplices_ids, status)
 VALUES
-    ('Проверка суммы платежей', 'Все суммы платежей должны быть больше нуля',
-     'И55 Очистные сооружения', 'PM-055', 'Аналитика', 'Платежная система',
-     'Финансы', 'Построчная', 'dal_data', 'payments_table',
+    ('РџСЂРѕРІРµСЂРєР° СЃСѓРјРјС‹ РїР»Р°С‚РµР¶РµР№', 'Р’СЃРµ СЃСѓРјРјС‹ РїР»Р°С‚РµР¶РµР№ РґРѕР»Р¶РЅС‹ Р±С‹С‚СЊ Р±РѕР»СЊС€Рµ РЅСѓР»СЏ',
+     'Р55 РћС‡РёСЃС‚РЅС‹Рµ СЃРѕРѕСЂСѓР¶РµРЅРёСЏ', 'PM-055', 'РђРЅР°Р»РёС‚РёРєР°', 'РџР»Р°С‚РµР¶РЅР°СЏ СЃРёСЃС‚РµРјР°',
+     'Р¤РёРЅР°РЅСЃС‹', 'РџРѕСЃС‚СЂРѕС‡РЅР°СЏ', 'dal_data', 'payments_table',
      'SIMPLE', false,
      '{"column": "amount", "operator": ">", "value": "0", "where_clause": "status = ''SUCCESS''"}'::jsonb,
      NULL, 'PERCENTAGE', 0.95, true, 'admin', NULL, 'PUBLISHED'),
 
-    ('Проверка NOT NULL email', 'Email клиента не должен быть пустым',
-     'И12 CRM модуль', 'PM-012', 'CRM', 'Клиентский модуль',
-     'Качество данных', 'Построчная', 'dal_data', 'customers_table',
+    ('РџСЂРѕРІРµСЂРєР° NOT NULL email', 'Email РєР»РёРµРЅС‚Р° РЅРµ РґРѕР»Р¶РµРЅ Р±С‹С‚СЊ РїСѓСЃС‚С‹Рј',
+     'Р12 CRM РјРѕРґСѓР»СЊ', 'PM-012', 'CRM', 'РљР»РёРµРЅС‚СЃРєРёР№ РјРѕРґСѓР»СЊ',
+     'РљР°С‡РµСЃС‚РІРѕ РґР°РЅРЅС‹С…', 'РџРѕСЃС‚СЂРѕС‡РЅР°СЏ', 'dal_data', 'customers_table',
      'SIMPLE', false,
      '{"column": "email", "operator": "IS NOT NULL", "value": "", "where_clause": ""}'::jsonb,
      NULL, 'PERCENTAGE', 1.0, true, 'admin', 'ivanov_ii,petrov_pp', 'DRAFT'),
 
-    ('Агрегатная проверка остатков', 'Итоговые остатки на складе не должны быть отрицательными',
-     'И55 Очистные сооружения', 'PM-055', 'Логистика', 'Система складского учёта',
-     'Логистика', 'Агрегатная', 'btl_data', 'warehouse_stock',
+    ('РђРіСЂРµРіР°С‚РЅР°СЏ РїСЂРѕРІРµСЂРєР° РѕСЃС‚Р°С‚РєРѕРІ', 'РС‚РѕРіРѕРІС‹Рµ РѕСЃС‚Р°С‚РєРё РЅР° СЃРєР»Р°РґРµ РЅРµ РґРѕР»Р¶РЅС‹ Р±С‹С‚СЊ РѕС‚СЂРёС†Р°С‚РµР»СЊРЅС‹РјРё',
+     'Р55 РћС‡РёСЃС‚РЅС‹Рµ СЃРѕРѕСЂСѓР¶РµРЅРёСЏ', 'PM-055', 'Р›РѕРіРёСЃС‚РёРєР°', 'РЎРёСЃС‚РµРјР° СЃРєР»Р°РґСЃРєРѕРіРѕ СѓС‡С‘С‚Р°',
+     'Р›РѕРіРёСЃС‚РёРєР°', 'РђРіСЂРµРіР°С‚РЅР°СЏ', 'btl_data', 'warehouse_stock',
      'RAW_SQL', true, NULL,
      'SELECT CASE WHEN MIN(quantity) >= 0 THEN true ELSE false END AS res FROM {schema}.{table}',
      'BOOLEAN', 1.0, true, 'sidorov_ss', NULL, 'PUBLISHED'),
 
-    ('Дубликаты в справочнике', 'Проверка уникальности записей в справочнике продуктов',
-     'И12 CRM модуль', 'PM-012', 'Справочники', 'Мастер-данные',
-     'Качество данных', 'Агрегатная', 'qhl_data', 'product_catalog',
+    ('Р”СѓР±Р»РёРєР°С‚С‹ РІ СЃРїСЂР°РІРѕС‡РЅРёРєРµ', 'РџСЂРѕРІРµСЂРєР° СѓРЅРёРєР°Р»СЊРЅРѕСЃС‚Рё Р·Р°РїРёСЃРµР№ РІ СЃРїСЂР°РІРѕС‡РЅРёРєРµ РїСЂРѕРґСѓРєС‚РѕРІ',
+     'Р12 CRM РјРѕРґСѓР»СЊ', 'PM-012', 'РЎРїСЂР°РІРѕС‡РЅРёРєРё', 'РњР°СЃС‚РµСЂ-РґР°РЅРЅС‹Рµ',
+     'РљР°С‡РµСЃС‚РІРѕ РґР°РЅРЅС‹С…', 'РђРіСЂРµРіР°С‚РЅР°СЏ', 'qhl_data', 'product_catalog',
      'RAW_SQL', true, NULL,
      'SELECT CASE WHEN COUNT(*) = COUNT(DISTINCT product_code) THEN true ELSE false END AS res FROM {schema}.{table}',
      'BOOLEAN', 1.0, true, 'ivanov_ii', 'admin', 'DRAFT'),
 
-    ('Проверка дат отгрузки', 'Дата отгрузки не должна быть раньше даты заказа',
-     'И55 Очистные сооружения', 'PM-055', 'Логистика', 'Система заказов',
-     'Логистика', 'Построчная', 'dal_data', 'orders_table',
+    ('РџСЂРѕРІРµСЂРєР° РґР°С‚ РѕС‚РіСЂСѓР·РєРё', 'Р”Р°С‚Р° РѕС‚РіСЂСѓР·РєРё РЅРµ РґРѕР»Р¶РЅР° Р±С‹С‚СЊ СЂР°РЅСЊС€Рµ РґР°С‚С‹ Р·Р°РєР°Р·Р°',
+     'Р55 РћС‡РёСЃС‚РЅС‹Рµ СЃРѕРѕСЂСѓР¶РµРЅРёСЏ', 'PM-055', 'Р›РѕРіРёСЃС‚РёРєР°', 'РЎРёСЃС‚РµРјР° Р·Р°РєР°Р·РѕРІ',
+     'Р›РѕРіРёСЃС‚РёРєР°', 'РџРѕСЃС‚СЂРѕС‡РЅР°СЏ', 'dal_data', 'orders_table',
      'SIMPLE', false,
      '{"column": "ship_date", "operator": ">=", "value": "order_date", "where_clause": ""}'::jsonb,
      NULL, 'PERCENTAGE', 0.99, true, 'admin', NULL, 'ARCHIVED')
 ON CONFLICT DO NOTHING;
 
--- ============================================================
--- Готово. Все объекты созданы в схеме tech_data.
--- ============================================================
+-- Р“РѕС‚РѕРІРѕ. Р’СЃРµ РѕР±СЉРµРєС‚С‹ СЃРѕР·РґР°РЅС‹ РІ СЃС…РµРјРµ tech_data.
